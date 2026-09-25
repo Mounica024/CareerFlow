@@ -4,7 +4,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useProfile } from '@/context/ProfileContext';
 import { jobProvider } from '@/services/jobProvider';
 import { matchingEngine } from '@/services/matchingEngine';
-import { savedJobsService } from '@/services/savedJobsService';
 import { applicationsService } from '@/services/applicationsService';
 import { JobCard } from '@/components/JobCard';
 import { PageHeader, EmptyState, LoadingSpinner } from '@/components/Common';
@@ -44,11 +43,8 @@ export function FindJobsPage() {
   const loadSavedIds = useCallback(async () => {
     if (!user) return;
     try {
-      const [saved, apps] = await Promise.all([
-        savedJobsService.list(user.id),
-        applicationsService.list(user.id),
-      ]);
-      setSavedIds(new Set(saved.map((s) => s.job_id)));
+      const apps = await applicationsService.list(user.id);
+      setSavedIds(new Set(apps.filter((a) => a.status === 'saved').map((a) => a.job_id)));
       setTrackedIds(new Set(apps.map((a) => a.job_id)));
     } catch {
       // silent
@@ -133,8 +129,9 @@ export function FindJobsPage() {
     if (!user || !profile) return;
     try {
       const match = matchingEngine.calculateMatch(profile, job);
-      await savedJobsService.save(user.id, job, match);
+      await applicationsService.create(user.id, job, 'saved');
       setSavedIds((prev) => new Set(prev).add(job.id));
+      setTrackedIds((prev) => new Set(prev).add(job.id));
     } catch {
       setToast({ msg: 'Failed to save job. Please try again.', type: 'error' });
     }
@@ -143,7 +140,11 @@ export function FindJobsPage() {
   const handleRemove = async (jobId: string) => {
     if (!user) return;
     try {
-      await savedJobsService.remove(user.id, jobId);
+      const apps = await applicationsService.list(user.id);
+      const app = apps.find((a) => a.job_id === jobId);
+      if (app) {
+        await applicationsService.remove(app.id);
+      }
       setSavedIds((prev) => {
         const next = new Set(prev);
         next.delete(jobId);
@@ -162,9 +163,9 @@ export function FindJobsPage() {
     if (trackedIds.has(job.id)) return;
     setTrackingJobId(job.id);
     try {
-      await applicationsService.create(user.id, job, 'saved');
+      await applicationsService.create(user.id, job, 'applied');
       setTrackedIds((prev) => new Set(prev).add(job.id));
-      setToast({ msg: 'Job tracked successfully.', type: 'success' });
+      setToast({ msg: 'Application tracked successfully.', type: 'success' });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to track job.';
       setToast({ msg, type: 'error' });

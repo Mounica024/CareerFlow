@@ -15,17 +15,15 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useProfile } from '@/context/ProfileContext';
 import { profileService } from '@/services/profileService';
-import { savedJobsService } from '@/services/savedJobsService';
 import { applicationsService, STATUS_LABELS, STATUS_COLORS } from '@/services/applicationsService';
 import { recruitmentEventsService } from '@/services/recruitmentEventsService';
 import { preparationService } from '@/services/preparationService';
 import { LoadingSpinner, EmptyState } from '@/components/Common';
-import type { SavedJob, Application, RecruitmentEvent, PreparationProgress } from '@/types';
+import type { Application, RecruitmentEvent, PreparationProgress } from '@/types';
 
 export function DashboardPage() {
   const { user } = useAuth();
   const { profile } = useProfile();
-  const [savedJobs, setSavedJobs] = useState<SavedJob[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [recruitmentEvents, setRecruitmentEvents] = useState<RecruitmentEvent[]>([]);
   const [preparation, setPreparation] = useState<PreparationProgress[]>([]);
@@ -37,14 +35,12 @@ export function DashboardPage() {
 
     (async () => {
       try {
-        const [saved, apps, events, prep] = await Promise.all([
-          savedJobsService.list(user.id),
+        const [apps, events, prep] = await Promise.all([
           applicationsService.list(user.id),
           recruitmentEventsService.list(user.id),
           preparationService.list(user.id),
         ]);
         if (!cancelled) {
-          setSavedJobs(saved);
           setApplications(apps);
           setRecruitmentEvents(events);
           setPreparation(prep);
@@ -68,15 +64,16 @@ export function DashboardPage() {
   }
 
   const completion = profileService.calculateCompletion(profile);
+  const savedApplications = applications.filter((a) => a.status === 'saved');
   const activeApplications = applications.filter(
-    (a) => a.status !== 'rejected' && a.status !== 'offer'
+    (a) => a.status !== 'saved' && a.status !== 'rejected' && a.status !== 'offer'
   );
   const upcomingEvents = recruitmentEvents.filter((e) => !e.confirmed).slice(0, 3);
   const completedPrep = preparation.filter((p) => p.status === 'completed').length;
 
   const stats = [
     { label: 'Profile Completion', value: `${completion}%`, icon: UserCircle, color: 'text-brand-600', bg: 'bg-brand-50' },
-    { label: 'Saved Jobs', value: savedJobs.length, icon: Bookmark, color: 'text-violet-600', bg: 'bg-violet-50' },
+    { label: 'Saved Jobs', value: savedApplications.length, icon: Bookmark, color: 'text-violet-600', bg: 'bg-violet-50' },
     { label: 'Active Applications', value: activeApplications.length, icon: ClipboardList, color: 'text-amber-600', bg: 'bg-amber-50' },
     { label: 'Prep Completed', value: completedPrep, icon: GraduationCap, color: 'text-emerald-600', bg: 'bg-emerald-50' },
   ];
@@ -160,24 +157,21 @@ export function DashboardPage() {
               View all
             </Link>
           </div>
-          {savedJobs.length === 0 ? (
+          {savedApplications.length === 0 ? (
             <EmptyState
               icon={<Bookmark className="h-6 w-6" />}
               title="No saved jobs yet"
-              description="Save jobs you're interested in to review them later."
+              description="Track jobs you're interested in to review them later."
               action={<Link to="/app/jobs" className="btn-primary text-xs">Search jobs</Link>}
             />
           ) : (
             <div className="space-y-2">
-              {savedJobs.slice(0, 4).map((saved) => (
+              {savedApplications.slice(0, 4).map((saved) => (
                 <div key={saved.id} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-slate-900">{saved.job_data.title}</p>
                     <p className="truncate text-xs text-slate-500">{saved.job_data.company}</p>
                   </div>
-                  {saved.match_data?.match_percentage !== null && saved.match_data?.match_percentage !== undefined && (
-                    <span className="badge bg-emerald-50 text-emerald-700 shrink-0">{saved.match_data.match_percentage}%</span>
-                  )}
                 </div>
               ))}
             </div>
