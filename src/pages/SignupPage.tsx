@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Briefcase, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Briefcase, Mail, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { PasswordInput } from '@/components/PasswordInput';
 
 export function SignupPage() {
   const { signUp } = useAuth();
@@ -74,33 +75,21 @@ export function SignupPage() {
             </div>
             <div>
               <label className="label-field" htmlFor="password">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="input-field pl-10"
-                  placeholder="At least 6 characters"
-                />
-              </div>
+              <PasswordInput
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 6 characters"
+              />
             </div>
             <div>
               <label className="label-field" htmlFor="confirm">Confirm password</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  id="confirm"
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="input-field pl-10"
-                  placeholder="••••••••"
-                />
-              </div>
+              <PasswordInput
+                id="confirm"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+              />
             </div>
             <button type="submit" disabled={loading} className="btn-primary w-full">
               {loading ? 'Creating account…' : 'Create account'}
