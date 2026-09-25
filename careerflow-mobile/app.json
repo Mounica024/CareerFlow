@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "CareerFlow",
+    "slug": "careerflow-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "careerflow",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0f4c75"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.careerflow.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f4c75"
+      },
+      "package": "com.careerflow.mobile"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
