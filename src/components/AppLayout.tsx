@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useProfile } from '@/context/ProfileContext';
+import { ProfileSetupModal } from '@/components/ProfileSetupModal';
 
 const navItems = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -28,7 +29,7 @@ const navItems = [
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { signOut } = useAuth();
-  const { profile } = useProfile();
+  const { profile, needsSetup, setNeedsSetup } = useProfile();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -120,6 +121,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <div className="mx-auto max-w-6xl">{children}</div>
         </main>
       </div>
+
+      <ProfileSetupModal
+        open={needsSetup}
+        onClose={() => setNeedsSetup(false)}
+      />
     </div>
   );
 }
