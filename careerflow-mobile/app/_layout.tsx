@@ -1,9 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { Stack } from 'expo-router';
-import { AuthProvider } from '@/context/AuthContext';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
-import { useAuth } from '@/context/AuthContext';
-import { Redirect } from 'expo-router';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { ProfileProvider, useProfile } from '@/context/ProfileContext';
 
 function AuthGate() {
   const { session, loading } = useAuth();
@@ -21,6 +20,24 @@ function AuthGate() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
       </Stack>
+    );
+  }
+
+  return (
+    <ProfileProvider>
+      <ProfileGate />
+    </ProfileProvider>
+  );
+}
+
+function ProfileGate() {
+  const { loading, needsSetup } = useProfile();
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0f4c75" />
+      </View>
     );
   }
 
