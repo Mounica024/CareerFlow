@@ -2,19 +2,25 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ClipboardList, ExternalLink, Trash2, Clock, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useProfile } from '@/context/ProfileContext';
 import { applicationsService, APPLICATION_STATUSES, STATUS_LABELS, STATUS_COLORS } from '@/services/applicationsService';
+import { matchingEngine } from '@/services/matchingEngine';
+import { JobDetailsModal } from '@/components/JobDetailsModal';
 import { PageHeader, EmptyState, LoadingSpinner } from '@/components/Common';
 import { Modal } from '@/components/Modal';
-import type { Application, ApplicationStatus, ApplicationEvent } from '@/types';
+import type { Application, ApplicationStatus, ApplicationEvent, Job, JobMatchResult } from '@/types';
 
 export function ApplicationsPage() {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [events, setEvents] = useState<ApplicationEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [view, setView] = useState<'board' | 'list'>('board');
+  const [jobDetailsJob, setJobDetailsJob] = useState<Job | null>(null);
+  const [jobDetailsMatch, setJobDetailsMatch] = useState<JobMatchResult | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -65,6 +71,13 @@ export function ApplicationsPage() {
     } finally {
       setEventsLoading(false);
     }
+  };
+
+  const openJobDetails = (app: Application) => {
+    const job = app.job_data as unknown as Job;
+    const match = profile ? matchingEngine.calculateMatch(profile, job) : null;
+    setJobDetailsMatch(match);
+    setJobDetailsJob(job);
   };
 
   if (loading) {
@@ -165,12 +178,18 @@ export function ApplicationsPage() {
             <div>
               <h3 className="font-semibold text-slate-900">{selectedApp.job_data.title}</h3>
               <p className="text-sm text-slate-500">{selectedApp.job_data.company}</p>
+              <button
+                onClick={() => openJobDetails(selectedApp)}
+                className="mt-2 text-sm text-brand-600 hover:text-brand-700 font-medium"
+              >
+                View full job details
+              </button>
               {selectedApp.job_data.application_url && (
                 <a
                   href={selectedApp.job_data.application_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-2 inline-flex items-center gap-1 text-sm text-brand-600 hover:text-brand-700 font-medium"
+                  className="mt-2 ml-2 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 font-medium"
                 >
                   <ExternalLink className="h-4 w-4" /> Open application page
                 </a>
@@ -234,6 +253,14 @@ export function ApplicationsPage() {
           </div>
         )}
       </Modal>
+
+      {/* Job Details Modal */}
+      <JobDetailsModal
+        job={jobDetailsJob}
+        match={jobDetailsMatch}
+        isTracked={jobDetailsJob ? applications.some((a) => a.job_id === jobDetailsJob.id && a.status !== 'saved') : false}
+        onClose={() => setJobDetailsJob(null)}
+      />
     </div>
   );
 }

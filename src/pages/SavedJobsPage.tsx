@@ -2,15 +2,21 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Bookmark, ArrowRight, ClipboardCheck } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useProfile } from '@/context/ProfileContext';
 import { applicationsService, STATUS_LABELS, STATUS_COLORS } from '@/services/applicationsService';
+import { matchingEngine } from '@/services/matchingEngine';
 import { JobCard } from '@/components/JobCard';
+import { JobDetailsModal } from '@/components/JobDetailsModal';
 import { PageHeader, EmptyState, LoadingSpinner } from '@/components/Common';
-import type { Application, Job } from '@/types';
+import type { Application, Job, JobMatchResult } from '@/types';
 
 export function SavedJobsPage() {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const [savedApps, setSavedApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<JobMatchResult | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -44,6 +50,12 @@ export function SavedJobsPage() {
     } catch {
       // keep current state on error
     }
+  };
+
+  const openJobDetails = (job: Job) => {
+    const match = profile ? matchingEngine.calculateMatch(profile, job) : null;
+    setSelectedMatch(match);
+    setSelectedJob(job);
   };
 
   if (loading) {
@@ -81,13 +93,31 @@ export function SavedJobsPage() {
               </button>
               <JobCard
                 job={app.job_data as unknown as Job}
+                match={profile ? matchingEngine.calculateMatch(profile, app.job_data as unknown as Job) : null}
                 isSaved
                 onRemove={() => handleRemove(app.id)}
+                onView={() => openJobDetails(app.job_data as unknown as Job)}
               />
             </div>
           ))}
         </div>
       )}
+
+      {/* Job Details Modal */}
+      <JobDetailsModal
+        job={selectedJob}
+        match={selectedMatch}
+        isSaved={true}
+        onSave={() => {}}
+        onRemove={() => {
+          if (selectedJob) {
+            const app = savedApps.find((a) => a.job_id === selectedJob.id);
+            if (app) handleRemove(app.id);
+          }
+          setSelectedJob(null);
+        }}
+        onClose={() => setSelectedJob(null)}
+      />
     </div>
   );
 }

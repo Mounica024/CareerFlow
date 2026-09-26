@@ -11,6 +11,9 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock,
+  Sparkles,
+  MapPin,
+  Building2,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useProfile } from '@/context/ProfileContext';
@@ -18,8 +21,10 @@ import { profileService } from '@/services/profileService';
 import { applicationsService, STATUS_LABELS, STATUS_COLORS } from '@/services/applicationsService';
 import { recruitmentEventsService } from '@/services/recruitmentEventsService';
 import { preparationService } from '@/services/preparationService';
+import { jobProvider } from '@/services/jobProvider';
+import { matchingEngine } from '@/services/matchingEngine';
 import { LoadingSpinner, EmptyState } from '@/components/Common';
-import type { Application, RecruitmentEvent, PreparationProgress } from '@/types';
+import type { Application, RecruitmentEvent, PreparationProgress, Job, JobMatchResult } from '@/types';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -27,7 +32,9 @@ export function DashboardPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [recruitmentEvents, setRecruitmentEvents] = useState<RecruitmentEvent[]>([]);
   const [preparation, setPreparation] = useState<PreparationProgress[]>([]);
+  const [recommendedJobs, setRecommendedJobs] = useState<{ job: Job; match: JobMatchResult }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingJobs, setLoadingJobs] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -54,6 +61,42 @@ export function DashboardPage() {
 
     return () => { cancelled = true; };
   }, [user]);
+
+  // Fetch recommended jobs when profile is available
+  useEffect(() => {
+    if (!profile || profile.skills.length === 0) return;
+    let cancelled = false;
+
+    (async () => {
+      setLoadingJobs(true);
+      try {
+        const query = profile.preferred_roles.length > 0
+          ? profile.preferred_roles[0]
+          : profile.skills.slice(0, 2).join(' ');
+        const location = profile.preferred_locations.length > 0 ? profile.preferred_locations[0] : undefined;
+        const result = await jobProvider.search({
+          query,
+          location,
+          results_per_page: 10,
+        });
+        if (cancelled) return;
+        if (result.jobs.length > 0) {
+          const matched = result.jobs
+            .map((job) => ({ job, match: matchingEngine.calculateMatch(profile, job) }))
+            .filter((m) => m.match.status !== 'unable_to_determine')
+            .sort((a, b) => (b.match.match_percentage ?? -1) - (a.match.match_percentage ?? -1))
+            .slice(0, 3);
+          setRecommendedJobs(matched);
+        }
+      } catch {
+        // silent — recommended section just won't show
+      } finally {
+        if (!cancelled) setLoadingJobs(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [profile?.id]);
 
   if (loading) {
     return (
@@ -125,6 +168,65 @@ export function DashboardPage() {
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
             <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${completion}%` }} />
           </div>
+        </div>
+      )}
+
+      {/* Recommended Jobs */}
+      {profile && profile.skills.length > 0 && (
+        <div className="card mt-6 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-brand-600" />
+              <h3 className="font-semibold text-slate-900">Recommended Jobs for You</h3>
+            </div>
+            <Link to="/app/jobs" className="text-xs text-brand-600 font-medium hover:text-brand-700">
+              Find more
+            </Link>
+          </div>
+          {loadingJobs ? (
+            <div className="flex h-20 items-center justify-center">
+              <LoadingSpinner size="sm" />
+            </div>
+          ) : recommendedJobs.length > 0 ? (
+            <div className="space-y-2">
+              {recommendedJobs.map(({ job, match }) => (
+                <Link
+                  key={job.id}
+                  to="/app/jobs"
+                  className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 transition-all hover:shadow-md hover:border-brand-200"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 border border-slate-200">
+                      <Building2 className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-900">{job.title}</p>
+                      <p className="truncate text-xs text-slate-500">
+                        {job.company}
+                        {job.location && <><span className="text-slate-300 mx-1">•</span><MapPin className="h-3 w-3 inline" /> {job.location}</>}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {match.match_percentage !== null && (
+                      <span className={`text-xs font-semibold ${
+                        match.status === 'strong_match' ? 'text-emerald-600'
+                          : match.status === 'partial_match' ? 'text-amber-600'
+                          : 'text-rose-600'
+                      }`}>
+                        {match.match_percentage}%
+                      </span>
+                    )}
+                    <ArrowRight className="h-4 w-4 text-slate-400" />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">
+              No strong matches right now. Try updating your profile with more skills and preferred roles.
+            </p>
+          )}
         </div>
       )}
 

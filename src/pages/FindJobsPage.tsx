@@ -1,13 +1,25 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Search, SlidersHorizontal, Zap, Plug, Info, AlertCircle, MapPin, ChevronDown, Loader2, Building2, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Search, SlidersHorizontal, Zap, Plug, Info, AlertCircle, MapPin, ChevronDown, Loader2, Building2, CheckCircle2, Sparkles, FilterX } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useProfile } from '@/context/ProfileContext';
 import { jobProvider } from '@/services/jobProvider';
 import { matchingEngine } from '@/services/matchingEngine';
 import { applicationsService } from '@/services/applicationsService';
 import { JobCard } from '@/components/JobCard';
+import { JobDetailsModal } from '@/components/JobDetailsModal';
 import { PageHeader, EmptyState, LoadingSpinner } from '@/components/Common';
-import type { Job, JobSearchFilters, EmploymentType, ExperienceLevel, WorkArrangement, JobSearchResult } from '@/types';
+import type { Job, JobSearchFilters, EmploymentType, ExperienceLevel, WorkArrangement, JobSearchResult, JobMatchResult, SourceType } from '@/types';
+
+type QuickFilter = 'recommended' | 'fresher' | 'entry_level' | 'internship' | 'full_time' | 'remote';
+
+const QUICK_FILTERS: { key: QuickFilter; label: string }[] = [
+  { key: 'recommended', label: 'Recommended for You' },
+  { key: 'fresher', label: 'Fresher' },
+  { key: 'entry_level', label: 'Entry Level' },
+  { key: 'internship', label: 'Internship' },
+  { key: 'full_time', label: 'Full Time' },
+  { key: 'remote', label: 'Remote' },
+];
 
 export function FindJobsPage() {
   const { user } = useAuth();
@@ -27,6 +39,9 @@ export function FindJobsPage() {
   const [total, setTotal] = useState(0);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [company, setCompany] = useState('');
+  const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilter | null>(null);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<JobMatchResult | null>(null);
 
   const [filters, setFilters] = useState<JobSearchFilters>({
     query: '',
@@ -74,6 +89,45 @@ export function FindJobsPage() {
     return query.trim();
   };
 
+  const applyQuickFilter = (qf: QuickFilter): JobSearchFilters => {
+    const base = { ...filters };
+    switch (qf) {
+      case 'fresher':
+      case 'entry_level':
+        base.experience_level = 'entry_level';
+        base.employment_type = undefined;
+        base.work_arrangement = undefined;
+        break;
+      case 'internship':
+        base.employment_type = 'internship';
+        base.experience_level = undefined;
+        break;
+      case 'full_time':
+        base.employment_type = 'full_time';
+        base.experience_level = undefined;
+        break;
+      case 'remote':
+        base.work_arrangement = 'remote';
+        base.employment_type = undefined;
+        base.experience_level = undefined;
+        break;
+      case 'recommended':
+        base.sort = 'best_match';
+        break;
+    }
+    return base;
+  };
+
+  const handleQuickFilter = (qf: QuickFilter) => {
+    if (activeQuickFilter === qf) {
+      setActiveQuickFilter(null);
+      setFilters((prev) => ({ ...prev, employment_type: undefined, experience_level: undefined, work_arrangement: undefined, sort: 'relevance' }));
+    } else {
+      setActiveQuickFilter(qf);
+      setFilters(applyQuickFilter(qf));
+    }
+  };
+
   const handleSearch = async (resetPage = true, overridePage?: number) => {
     const searchPage = overridePage ?? (resetPage ? 1 : page);
     if (resetPage) {
@@ -86,12 +140,10 @@ export function FindJobsPage() {
 
     try {
       const combinedQuery = buildSearchQuery();
-      const result: JobSearchResult = await jobProvider.search({
-        ...filters,
-        query: combinedQuery,
-        page: searchPage,
-        results_per_page: 10,
-      });
+      const searchFilters = activeQuickFilter === 'recommended' && profile
+        ? { ...applyQuickFilter('recommended'), query: combinedQuery, page: searchPage, results_per_page: 10 }
+        : { ...filters, query: combinedQuery, page: searchPage, results_per_page: 10 };
+      const result: JobSearchResult = await jobProvider.search(searchFilters);
 
       if (result.configured === false) {
         setNotConfigured(true);
@@ -128,7 +180,6 @@ export function FindJobsPage() {
   const handleSave = async (job: Job) => {
     if (!user || !profile) return;
     try {
-      const match = matchingEngine.calculateMatch(profile, job);
       await applicationsService.create(user.id, job, 'saved');
       setSavedIds((prev) => new Set(prev).add(job.id));
     } catch {
@@ -173,7 +224,40 @@ export function FindJobsPage() {
     }
   };
 
+  const openJobDetails = (job: Job) => {
+    const match = profile ? matchingEngine.calculateMatch(profile, job) : null;
+    setSelectedMatch(match);
+    setSelectedJob(job);
+  };
+
+  // Compute match for each job and sort by best match when recommended filter is active
+  const jobMatches = useMemo(() => {
+    if (!profile) return new Map<string, JobMatchResult | null>();
+    const map = new Map<string, JobMatchResult | null>();
+    for (const job of jobs) {
+      map.set(job.id, matchingEngine.calculateMatch(profile, job));
+    }
+    return map;
+  }, [jobs, profile]);
+
+  const sortedJobs = useMemo(() => {
+    if (activeQuickFilter === 'recommended' && profile) {
+      return [...jobs].sort((a, b) => {
+        const ma = jobMatches.get(a.id);
+        const mb = jobMatches.get(b.id);
+        const pa = ma?.match_percentage ?? -1;
+        const pb = mb?.match_percentage ?? -1;
+        return pb - pa;
+      });
+    }
+    return jobs;
+  }, [jobs, activeQuickFilter, profile, jobMatches]);
+
   const hasProfile = profile && (profile.skills.length > 0 || profile.programming_languages.length > 0);
+  const hasStrongMatches = sortedJobs.some((j) => {
+    const m = jobMatches.get(j.id);
+    return m && (m.status === 'strong_match' || (m.match_percentage !== null && m.match_percentage >= 50));
+  });
 
   return (
     <div className="animate-fade-in">
@@ -244,6 +328,24 @@ export function FindJobsPage() {
           <button onClick={() => handleSearch()} disabled={loading} className="btn-primary sm:px-8">
             {loading ? <LoadingSpinner size="sm" /> : <><Search className="h-4 w-4" /> Search Jobs</>}
           </button>
+        </div>
+
+        {/* Quick filter chips */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {QUICK_FILTERS.map((qf) => (
+            <button
+              key={qf.key}
+              onClick={() => handleQuickFilter(qf.key)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+                activeQuickFilter === qf.key
+                  ? 'border-brand-300 bg-brand-50 text-brand-700'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              {qf.key === 'recommended' && <Sparkles className="h-3 w-3" />}
+              {qf.label}
+            </button>
+          ))}
         </div>
 
         <button
@@ -334,7 +436,8 @@ export function FindJobsPage() {
                   onChange={(e) => setFilters({ ...filters, sort: (e.target.value) as JobSearchFilters['sort'] })}
                 >
                   <option value="relevance">Relevance</option>
-                  <option value="latest">Latest</option>
+                  <option value="best_match">Best Match</option>
+                  <option value="latest">Most Recent</option>
                   <option value="deadline">Deadline</option>
                 </select>
               </div>
@@ -376,16 +479,17 @@ export function FindJobsPage() {
         </div>
       ) : searched ? (
         <>
-          {jobs.length > 0 && (
+          {sortedJobs.length > 0 && (
             <p className="mb-4 text-sm text-slate-500">
-              {total > 0 ? `${total.toLocaleString()} jobs found` : `${jobs.length} jobs found`}
+              {total > 0 ? `${total.toLocaleString()} jobs found` : `${sortedJobs.length} jobs found`}
+              {activeQuickFilter === 'recommended' && ' — sorted by best match'}
             </p>
           )}
-          {jobs.length > 0 ? (
+          {sortedJobs.length > 0 ? (
             <>
               <div className="grid gap-4 sm:grid-cols-2">
-                {jobs.map((job) => {
-                  const match = profile ? matchingEngine.calculateMatch(profile, job) : null;
+                {sortedJobs.map((job) => {
+                  const match = jobMatches.get(job.id) ?? null;
                   return (
                     <JobCard
                       key={job.id}
@@ -397,6 +501,7 @@ export function FindJobsPage() {
                       onSave={() => handleSave(job)}
                       onRemove={() => handleRemove(job.id)}
                       onTrack={() => handleTrack(job)}
+                      onView={() => openJobDetails(job)}
                     />
                   );
                 })}
@@ -426,6 +531,26 @@ export function FindJobsPage() {
                 : "Try adjusting your search terms, location, or filters."}
             />
           ) : null}
+
+          {/* No strong matches state */}
+          {searched && sortedJobs.length > 0 && !hasStrongMatches && activeQuickFilter === 'recommended' && profile && (
+            <div className="card mt-6 border-amber-200 bg-amber-50/50 p-5">
+              <div className="flex items-start gap-3">
+                <FilterX className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-slate-900">No strong matches right now</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    None of the current results are a strong match for your profile. Try these options:
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button onClick={() => handleQuickFilter('entry_level')} className="btn-secondary text-xs">View Entry-Level Jobs</button>
+                    <button onClick={() => handleQuickFilter('internship')} className="btn-secondary text-xs">View Internships</button>
+                    <button onClick={() => setFilters({ ...filters, location: '' })} className="btn-secondary text-xs">Expand Location</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <EmptyState
@@ -434,6 +559,23 @@ export function FindJobsPage() {
           description="Enter the job you want. CareerFlow will find real opportunities from different companies and locations."
         />
       )}
+
+      {/* Job Details Modal */}
+      <JobDetailsModal
+        job={selectedJob}
+        match={selectedMatch}
+        isSaved={selectedJob ? savedIds.has(selectedJob.id) : false}
+        isTracked={selectedJob ? trackedIds.has(selectedJob.id) : false}
+        tracking={selectedJob ? trackingJobId === selectedJob.id : false}
+        onSave={() => selectedJob && handleSave(selectedJob)}
+        onRemove={() => {
+          if (selectedJob) {
+            handleRemove(selectedJob.id);
+          }
+        }}
+        onTrack={() => selectedJob && handleTrack(selectedJob)}
+        onClose={() => setSelectedJob(null)}
+      />
     </div>
   );
 }

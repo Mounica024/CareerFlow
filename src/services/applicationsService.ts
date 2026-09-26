@@ -9,6 +9,7 @@ export const APPLICATION_STATUSES: ApplicationStatus[] = [
   'hr_interview',
   'offer',
   'rejected',
+  'withdrawn',
 ];
 
 export const STATUS_LABELS: Record<ApplicationStatus, string> = {
@@ -19,6 +20,7 @@ export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   hr_interview: 'HR Interview',
   offer: 'Offer',
   rejected: 'Rejected',
+  withdrawn: 'Withdrawn',
 };
 
 export const STATUS_COLORS: Record<ApplicationStatus, string> = {
@@ -29,6 +31,7 @@ export const STATUS_COLORS: Record<ApplicationStatus, string> = {
   hr_interview: 'bg-cyan-50 text-cyan-700',
   offer: 'bg-emerald-50 text-emerald-700',
   rejected: 'bg-rose-50 text-rose-700',
+  withdrawn: 'bg-slate-100 text-slate-500',
 };
 
 export interface ApplicationsService {

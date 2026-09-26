@@ -48,6 +48,7 @@ export function JobCard({
   onSave,
   onRemove,
   onTrack,
+  onView,
   showMatch = true,
 }: {
   job: Job;
@@ -58,6 +59,7 @@ export function JobCard({
   onSave?: () => void;
   onRemove?: () => void;
   onTrack?: () => void;
+  onView?: () => void;
   showMatch?: boolean;
 }) {
   return (
@@ -192,15 +194,13 @@ export function JobCard({
               </button>
             )
           )}
-          {job.application_url && (
-            <a
-              href={job.application_url}
-              target="_blank"
-              rel="noopener noreferrer"
+          {onView && (
+            <button
+              onClick={onView}
               className="btn-primary text-xs px-3 py-1.5"
             >
-              Apply <ExternalLink className="h-3 w-3" />
-            </a>
+              View Details
+            </button>
           )}
         </div>
       </div>

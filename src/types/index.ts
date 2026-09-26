@@ -11,7 +11,8 @@ export type ApplicationStatus =
   | 'technical_interview'
   | 'hr_interview'
   | 'offer'
-  | 'rejected';
+  | 'rejected'
+  | 'withdrawn';
 
 export type MatchStatus = 'strong_match' | 'partial_match' | 'requirements_missing' | 'unable_to_determine';
 
@@ -223,7 +224,8 @@ export interface JobSearchFilters {
   location?: string;
   work_arrangement?: WorkArrangement;
   skills?: string[];
-  sort?: 'relevance' | 'latest' | 'deadline';
+  source_type?: SourceType;
+  sort?: 'relevance' | 'latest' | 'deadline' | 'best_match';
   page?: number;
   results_per_page?: number;
 }
