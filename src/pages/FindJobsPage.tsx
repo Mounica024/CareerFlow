@@ -131,7 +131,6 @@ export function FindJobsPage() {
       const match = matchingEngine.calculateMatch(profile, job);
       await applicationsService.create(user.id, job, 'saved');
       setSavedIds((prev) => new Set(prev).add(job.id));
-      setTrackedIds((prev) => new Set(prev).add(job.id));
     } catch {
       setToast({ msg: 'Failed to save job. Please try again.', type: 'error' });
     }

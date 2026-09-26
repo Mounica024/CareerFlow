@@ -78,7 +78,20 @@ class SupabaseApplicationsService implements ApplicationsService {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      // Race condition: row was inserted between our check and insert.
+      // Fetch and return the existing row.
+      if (error.code === '23505') {
+        const { data: existingRow } = await supabase
+          .from('applications')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('job_id', job.id)
+          .maybeSingle();
+        if (existingRow) return existingRow as Application;
+      }
+      throw error;
+    }
     const application = data as Application;
 
     await this.addEvent(application.id, 'created', 'Application tracked', `Status: ${STATUS_LABELS[status]}`);

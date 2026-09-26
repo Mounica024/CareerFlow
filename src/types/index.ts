@@ -89,6 +89,20 @@ export interface JobRequirement {
   required: boolean;
 }
 
+export type SourceType =
+  | 'government'
+  | 'company_careers'
+  | 'recognized_platform'
+  | 'job_aggregator'
+  | 'unverified';
+
+export interface SourceInfo {
+  name: string;
+  type: SourceType;
+  url?: string;
+  application_url?: string;
+}
+
 export interface Job {
   id: string;
   title: string;
@@ -104,6 +118,8 @@ export interface Job {
   application_deadline?: string | null;
   application_url?: string;
   job_source: string;
+  source_type?: SourceType;
+  source_url?: string;
   posted_at?: string;
   salary_range?: string;
 }

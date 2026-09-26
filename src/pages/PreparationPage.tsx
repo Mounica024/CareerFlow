@@ -85,7 +85,7 @@ export function PreparationPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, profile]);
+  }, [user, profile?.id]);
 
   useEffect(() => {
     load();
@@ -120,8 +120,12 @@ export function PreparationPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await preparationService.remove(id);
-    setProgress((prev) => prev.filter((p) => p.id !== id));
+    try {
+      await preparationService.remove(id);
+      setProgress((prev) => prev.filter((p) => p.id !== id));
+    } catch {
+      // keep current state on error
+    }
   };
 
   // Skills to improve — from job-derived recommendations only, already filtered for false positives

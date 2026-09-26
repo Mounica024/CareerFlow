@@ -87,8 +87,6 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           error: "Failed to connect to Adzuna API.",
-          details: fetchErr.message || String(fetchErr),
-          adzuna_url: apiUrl.replace(appKey, "***REDACTED***").replace(appId, "***REDACTED***"),
           configured: true,
         }),
         {
@@ -103,8 +101,6 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           error: `Adzuna API returned HTTP ${response.status}`,
-          details: errorText.substring(0, 1000),
-          adzuna_url: apiUrl.replace(appKey, "***REDACTED***").replace(appId, "***REDACTED***"),
           configured: true,
         }),
         {
@@ -208,6 +204,8 @@ Deno.serve(async (req: Request) => {
         application_deadline: null,
         application_url: redirectUrl,
         job_source: "Adzuna",
+        source_type: "job_aggregator",
+        source_url: "https://www.adzuna.com",
         posted_at: created,
         salary_range: salaryRange,
         category,
@@ -217,7 +215,7 @@ Deno.serve(async (req: Request) => {
     const result = {
       jobs,
       total: data.count || jobs.length,
-      has_more: jobs.length >= resultsPerPage,
+      has_more: (data.count || 0) > page * resultsPerPage,
       source: "Adzuna",
       configured: true,
     };
@@ -226,10 +224,10 @@ Deno.serve(async (req: Request) => {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
+  } catch {
     return new Response(
       JSON.stringify({
-        error: err.message || "Internal server error",
+        error: "Internal server error",
         configured: true,
       }),
       {

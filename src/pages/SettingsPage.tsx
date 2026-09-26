@@ -39,14 +39,26 @@ export function SettingsPage() {
     })();
   }, [user]);
 
+  const [actionError, setActionError] = useState(false);
+
   const handleConfirm = async (id: string) => {
-    await recruitmentEventsService.confirm(id);
-    setEvents((prev) => prev.map((e) => e.id === id ? { ...e, confirmed: true } : e));
+    try {
+      await recruitmentEventsService.confirm(id);
+      setEvents((prev) => prev.map((e) => e.id === id ? { ...e, confirmed: true } : e));
+    } catch {
+      setActionError(true);
+      setTimeout(() => setActionError(false), 4000);
+    }
   };
 
   const handleDelete = async (id: string) => {
-    await recruitmentEventsService.remove(id);
-    setEvents((prev) => prev.filter((e) => e.id !== id));
+    try {
+      await recruitmentEventsService.remove(id);
+      setEvents((prev) => prev.filter((e) => e.id !== id));
+    } catch {
+      setActionError(true);
+      setTimeout(() => setActionError(false), 4000);
+    }
   };
 
   if (loading) {
@@ -60,6 +72,12 @@ export function SettingsPage() {
   return (
     <div className="animate-fade-in">
       <PageHeader title="Settings" subtitle="Manage your account, email integrations, and preferences." />
+
+      {actionError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Something went wrong. Please try again.
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* Email Integration */}

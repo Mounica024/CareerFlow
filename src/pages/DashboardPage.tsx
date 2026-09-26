@@ -55,11 +55,21 @@ export function DashboardPage() {
     return () => { cancelled = true; };
   }, [user]);
 
-  if (loading || !profile) {
+  if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <LoadingSpinner size="lg" />
       </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <EmptyState
+        icon={<UserCircle className="h-6 w-6" />}
+        title="Profile not loaded"
+        description="We couldn't load your profile. Try refreshing the page."
+      />
     );
   }
 

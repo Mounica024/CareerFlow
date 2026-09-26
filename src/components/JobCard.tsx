@@ -1,6 +1,43 @@
-import { Bookmark, BookmarkCheck, ExternalLink, MapPin, Building2, Clock, CheckCircle2, XCircle, DollarSign, Calendar, ClipboardCheck, Loader2 } from 'lucide-react';
-import type { Job, JobMatchResult } from '@/types';
+import { Bookmark, BookmarkCheck, ExternalLink, MapPin, Building2, Clock, CheckCircle2, XCircle, DollarSign, Calendar, ClipboardCheck, Loader2, ShieldCheck, ShieldQuestion, Globe } from 'lucide-react';
+import type { Job, JobMatchResult, SourceType } from '@/types';
 import { MatchBadge, EmploymentTypeBadge, WorkArrangementBadge, ExperienceLevelBadge } from '@/components/Badges';
+
+const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
+  government: 'Government / Public',
+  company_careers: 'Official Company',
+  recognized_platform: 'Recognized Platform',
+  job_aggregator: 'Job Aggregator',
+  unverified: 'Unverified / Unknown',
+};
+
+const SOURCE_TYPE_STYLES: Record<SourceType, string> = {
+  government: 'bg-blue-50 text-blue-700 border-blue-200',
+  company_careers: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  recognized_platform: 'bg-violet-50 text-violet-700 border-violet-200',
+  job_aggregator: 'bg-amber-50 text-amber-700 border-amber-200',
+  unverified: 'bg-slate-100 text-slate-500 border-slate-200',
+};
+
+const SOURCE_TYPE_ICONS: Record<SourceType, typeof ShieldCheck> = {
+  government: ShieldCheck,
+  company_careers: ShieldCheck,
+  recognized_platform: Globe,
+  job_aggregator: Globe,
+  unverified: ShieldQuestion,
+};
+
+function SourceBadge({ job }: { job: Job }) {
+  const sourceType: SourceType = job.source_type || 'unverified';
+  const label = SOURCE_TYPE_LABELS[sourceType];
+  const Icon = SOURCE_TYPE_ICONS[sourceType];
+  const style = SOURCE_TYPE_STYLES[sourceType];
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium ${style}`} title={`Source: ${job.job_source} — ${label}`}>
+      <Icon className="h-3 w-3" />
+      {label}
+    </span>
+  );
+}
 
 export function JobCard({
   job,
@@ -129,8 +166,8 @@ export function JobCard({
       )}
 
       <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
-        <div className="flex items-center gap-3 text-xs text-slate-500">
-          <span>Source: {job.job_source}</span>
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <SourceBadge job={job} />
           {job.application_deadline && (
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
