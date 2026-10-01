@@ -1,2 +1,5 @@
 [functions.job-search]
 verify_jwt = true
+
+[functions.lever-search]
+verify_jwt = true

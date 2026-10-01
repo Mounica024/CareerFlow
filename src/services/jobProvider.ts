@@ -89,6 +89,73 @@ export class AdzunaJobProvider implements JobProvider {
 }
 
 /**
+ * LeverJobProvider — calls CareerFlow's own edge function which fetches
+ * public job postings from Lever's public postings API. Lever is an ATS
+ * used by many companies; their public postings endpoint requires no API key.
+ * The edge function handles fetching from multiple company handles server-side.
+ */
+export class LeverJobProvider implements JobProvider {
+  readonly name = 'Lever';
+  readonly isConnected = true;
+
+  async search(filters: JobSearchFilters): Promise<JobSearchResult> {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    const endpoint = `${supabaseUrl}/functions/v1/lever-search`;
+
+    const payload = {
+      query: filters.query || undefined,
+      location: filters.location || undefined,
+      page: filters.page || 1,
+      results_per_page: filters.results_per_page || 10,
+      experience_level: filters.experience_level || undefined,
+      work_arrangement: filters.work_arrangement || undefined,
+      sort: filters.sort || undefined,
+    };
+
+    let response: Response;
+    try {
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${supabaseAnonKey}`,
+          apikey: supabaseAnonKey,
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      return {
+        jobs: [],
+        total: 0,
+        has_more: false,
+        source: this.name,
+        configured: true,
+      };
+    }
+
+    if (!response.ok) {
+      return {
+        jobs: [],
+        total: 0,
+        has_more: false,
+        source: this.name,
+        configured: true,
+      };
+    }
+
+    const data = await response.json();
+    return {
+      jobs: data.jobs || [],
+      total: data.total || 0,
+      has_more: data.has_more || false,
+      source: data.source || this.name,
+      configured: true,
+    };
+  }
+}
+
+/**
  * NoOpJobProvider — fallback when no real job API is connected.
  * Returns zero results. The UI shows a clean integration/empty state.
  */
@@ -249,6 +316,6 @@ export class JobAggregator implements JobProvider {
   }
 }
 
-const providers: JobProvider[] = [new AdzunaJobProvider()];
+const providers: JobProvider[] = [new AdzunaJobProvider(), new LeverJobProvider()];
 
 export const jobProvider: JobProvider = new JobAggregator(providers);
