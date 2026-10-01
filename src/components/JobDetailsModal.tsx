@@ -11,6 +11,7 @@ import { Modal } from '@/components/Modal';
 import {
   MatchBadge, EmploymentTypeBadge, WorkArrangementBadge, ExperienceLevelBadge,
 } from '@/components/Badges';
+import { normalizeCompany, formatJobDate, cleanDescription } from '@/lib/jobUtils';
 
 const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
   government: 'Government / Public',
@@ -87,7 +88,7 @@ export function JobDetailsModal({
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-lg font-bold text-slate-900">{job.title}</h3>
-            <p className="text-sm text-slate-500">{job.company}</p>
+            <p className="text-sm text-slate-500">{normalizeCompany(job.company)}</p>
           </div>
           {isSaved ? (
             <button onClick={onRemove} className="rounded-lg p-2 text-brand-600 hover:bg-brand-50 transition-colors" title="Remove from saved">
@@ -117,14 +118,14 @@ export function JobDetailsModal({
               <DollarSign className="h-3 w-3" /> {job.salary_range}
             </span>
           )}
-          {job.posted_at && (
+          {formatJobDate(job.posted_at) && (
             <span className="badge bg-slate-50 text-slate-500">
-              <Calendar className="h-3 w-3" /> Posted {new Date(job.posted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              <Calendar className="h-3 w-3" /> Posted {formatJobDate(job.posted_at)}
             </span>
           )}
-          {job.application_deadline && (
+          {formatJobDate(job.application_deadline) && (
             <span className="badge bg-rose-50 text-rose-700">
-              <Clock className="h-3 w-3" /> Deadline {new Date(job.application_deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              <Clock className="h-3 w-3" /> Deadline {formatJobDate(job.application_deadline)}
             </span>
           )}
         </div>
@@ -139,10 +140,10 @@ export function JobDetailsModal({
         </div>
 
         {/* Description */}
-        {job.description && (
+        {cleanDescription(job.description) && (
           <div>
             <h4 className="text-sm font-semibold text-slate-900 mb-1">Job Description</h4>
-            <p className="text-sm text-slate-600 whitespace-pre-line">{job.description}</p>
+            <p className="text-sm text-slate-600 whitespace-pre-line">{cleanDescription(job.description)}</p>
           </div>
         )}
 

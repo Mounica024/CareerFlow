@@ -137,7 +137,17 @@ Deno.serve(async (req: Request) => {
     const allJobs = rawResults.map((r: Record<string, unknown>) => {
       const id = String(r.id || "");
       const title = String(r.title || "Untitled Position");
-      const company = (r.company as Record<string, unknown>)?.display_name || String(r.company || "Unknown Company");
+      const companyRaw = r.company;
+      let company: string;
+      if (typeof companyRaw === 'string') {
+        company = companyRaw.trim() || 'Unknown Company';
+      } else if (companyRaw && typeof companyRaw === 'object') {
+        const cobj = companyRaw as Record<string, unknown>;
+        const cname = cobj.display_name || cobj.name || cobj.label;
+        company = (typeof cname === 'string' && cname.trim()) ? cname.trim() : 'Unknown Company';
+      } else {
+        company = 'Unknown Company';
+      }
       const locationObj = r.location as Record<string, unknown> | undefined;
       const location = locationObj?.display_name ? String(locationObj.display_name) : undefined;
       const description = String(r.description || "");
@@ -161,12 +171,29 @@ Deno.serve(async (req: Request) => {
       if (descLower.includes("remote") || descLower.includes("work from home")) workArrangement = "remote";
       else if (descLower.includes("hybrid")) workArrangement = "hybrid";
 
-      // Determine experience level from title
+      // Determine experience level from title and description
       const titleLower = title.toLowerCase();
+      const descLowerForLevel = description.toLowerCase();
       let experienceLevel: string = "entry_level";
-      if (titleLower.includes("senior") || titleLower.includes("sr.") || titleLower.includes("lead")) experienceLevel = "senior";
-      else if (titleLower.includes("mid") || titleLower.includes("ii ") || titleLower.includes("3+")) experienceLevel = "mid";
-      else if (titleLower.includes("junior") || titleLower.includes("jr.") || titleLower.includes("entry") || titleLower.includes("graduate") || titleLower.includes("fresher")) experienceLevel = "entry_level";
+      if (titleLower.includes("senior") || titleLower.includes("sr.") || titleLower.includes("lead")) {
+        experienceLevel = "senior";
+      } else if (titleLower.includes("principal") || titleLower.includes("staff") || titleLower.includes("director")) {
+        experienceLevel = "lead";
+      } else if (titleLower.includes("mid") || titleLower.includes("ii ")) {
+        experienceLevel = "mid";
+      } else if (titleLower.includes("junior") || titleLower.includes("jr.") || titleLower.includes("entry") || titleLower.includes("graduate") || titleLower.includes("fresher")) {
+        experienceLevel = "entry_level";
+      } else if (descLowerForLevel.match(/(7\+|8\+|9\+|10\+)\s*years?/)) {
+        experienceLevel = "lead";
+      } else if (descLowerForLevel.match(/(5\+|6\+)\s*years?/)) {
+        experienceLevel = "senior";
+      } else if (descLowerForLevel.match(/(3\+|4\+)\s*years?/)) {
+        experienceLevel = "mid";
+      } else if (descLowerForLevel.match(/(1\+|2\+)\s*years?/)) {
+        experienceLevel = "junior";
+      } else {
+        experienceLevel = "entry_level";
+      }
 
       // Build salary range string
       let salaryRange: string | undefined;
@@ -220,7 +247,7 @@ Deno.serve(async (req: Request) => {
         employment_type: employmentType,
         work_arrangement: workArrangement,
         experience_level: experienceLevel,
-        description: description,
+        description: description.replace(/\r\n/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').replace(/[ \t]{2,}/g, ' ').trim(),
         requirements: skills.map((s) => ({ skill: s, required: false })),
         skills,
         application_deadline: applicationDeadline,

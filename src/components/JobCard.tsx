@@ -1,6 +1,7 @@
 import { Bookmark, BookmarkCheck, ExternalLink, MapPin, Building2, Clock, CheckCircle2, XCircle, DollarSign, Calendar, ClipboardCheck, Loader2, ShieldCheck, ShieldQuestion, Globe } from 'lucide-react';
 import type { Job, JobMatchResult, SourceType } from '@/types';
 import { MatchBadge, EmploymentTypeBadge, WorkArrangementBadge, ExperienceLevelBadge } from '@/components/Badges';
+import { normalizeCompany, formatJobDate, cleanDescription } from '@/lib/jobUtils';
 
 const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
   government: 'Government / Public',
@@ -75,7 +76,7 @@ export function JobCard({
           </div>
           <div className="min-w-0">
             <h3 className="font-semibold text-slate-900 truncate">{job.title}</h3>
-            <p className="text-sm text-slate-500 truncate">{job.company}</p>
+            <p className="text-sm text-slate-500 truncate">{normalizeCompany(job.company)}</p>
           </div>
         </div>
         {onSave && !isSaved && (
@@ -104,15 +105,15 @@ export function JobCard({
             <DollarSign className="h-3 w-3" /> {job.salary_range}
           </span>
         )}
-        {job.posted_at && (
+        {formatJobDate(job.posted_at) && (
           <span className="badge bg-slate-50 text-slate-500">
-            <Calendar className="h-3 w-3" /> {new Date(job.posted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            <Calendar className="h-3 w-3" /> {formatJobDate(job.posted_at)}
           </span>
         )}
       </div>
 
-      {job.description && (
-        <p className="mt-3 text-sm text-slate-600 line-clamp-2">{job.description}</p>
+      {cleanDescription(job.description) && (
+        <p className="mt-3 text-sm text-slate-600 line-clamp-2">{cleanDescription(job.description)}</p>
       )}
 
       {job.skills.length > 0 && (
@@ -170,10 +171,10 @@ export function JobCard({
       <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <SourceBadge job={job} />
-          {job.application_deadline && (
+          {formatJobDate(job.application_deadline) && (
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {new Date(job.application_deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {formatJobDate(job.application_deadline)}
             </span>
           )}
         </div>

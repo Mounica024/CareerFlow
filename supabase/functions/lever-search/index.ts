@@ -112,9 +112,12 @@ Deno.serve(async (req: Request) => {
 
     // Map to CareerFlow Job shape
     const mappedJobs = filtered.map((p) => {
-      const company = p.categories?.team || p.categories?.company || "Lever Employer";
+      // Extract the actual company name. Lever postings don't include the
+      // employer name directly, so we use the handle from the posting's hostedUrl
+      // as a fallback. The categories.team field is a department, not a company.
+      const company = p.categories?.company || "Lever Employer";
       const location = [p.location, p.city, p.region, p.country].filter(Boolean).join(", ") || undefined;
-      const description = p.descriptionPlain || p.description || "";
+      const description = (p.descriptionPlain || p.description || "").replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
       const title = p.text || "Untitled Position";
       const titleLower = title.toLowerCase();
       const descLower = description.toLowerCase();
@@ -137,16 +140,26 @@ Deno.serve(async (req: Request) => {
         workArrangement = "hybrid";
       }
 
-      // Determine experience level from title
+      // Determine experience level from title and description
       let experienceLevel = "entry_level";
       if (titleLower.includes("senior") || titleLower.includes("sr.") || titleLower.includes("lead")) {
         experienceLevel = "senior";
+      } else if (titleLower.includes("principal") || titleLower.includes("staff") || titleLower.includes("director")) {
+        experienceLevel = "lead";
       } else if (titleLower.includes("mid") || titleLower.includes("ii ")) {
         experienceLevel = "mid";
       } else if (titleLower.includes("junior") || titleLower.includes("jr.") || titleLower.includes("entry") || titleLower.includes("graduate")) {
         experienceLevel = "entry_level";
-      } else if (titleLower.includes("principal") || titleLower.includes("staff") || titleLower.includes("director")) {
+      } else if (descLower.match(/(7\+|8\+|9\+|10\+)\s*years?/)) {
         experienceLevel = "lead";
+      } else if (descLower.match(/(5\+|6\+)\s*years?/)) {
+        experienceLevel = "senior";
+      } else if (descLower.match(/(3\+|4\+)\s*years?/)) {
+        experienceLevel = "mid";
+      } else if (descLower.match(/(1\+|2\+)\s*years?/)) {
+        experienceLevel = "junior";
+      } else {
+        experienceLevel = "entry_level";
       }
 
       // Extract skills from description
