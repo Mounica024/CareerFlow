@@ -318,7 +318,7 @@ export function FindJobsPage() {
             <div>
               <p className="font-medium text-slate-900">Job search isn't connected yet</p>
               <p className="mt-0.5 text-sm text-slate-600">
-                Add the Adzuna API credentials to enable real job search. CareerFlow never shows fake or fabricated job listings.
+                Job search providers need API credentials to be configured. CareerFlow never shows fake or fabricated job listings.
               </p>
             </div>
           </div>
@@ -331,9 +331,9 @@ export function FindJobsPage() {
                 <Search className="h-5 w-5" />
               </div>
               <div>
-                <p className="font-medium text-slate-900">Real job search powered by Adzuna</p>
+                <p className="font-medium text-slate-900">Real job search</p>
                 <p className="mt-0.5 text-sm text-slate-600">
-                  Search across real job listings from the Adzuna network. Results include legitimate application links — CareerFlow never fabricates jobs.
+                  Search across real job listings from multiple sources. Results include legitimate application links — CareerFlow never fabricates jobs.
                 </p>
               </div>
             </div>

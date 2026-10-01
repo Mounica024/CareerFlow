@@ -106,4 +106,149 @@ export class NoOpJobProvider implements JobProvider {
   }
 }
 
-export const jobProvider: JobProvider = new AdzunaJobProvider();
+/**
+ * Normalizes a string for deduplication: lowercase, trim, collapse whitespace,
+ * remove common punctuation and suffixes.
+ */
+function normalizeText(s: string): string {
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/[.,;&'"\/\\()\-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\b(inc|llc|ltd|limited|corp|corporation|pvt|private)\b/g, '')
+    .trim();
+}
+
+/**
+ * Build a deduplication key from normalized title + company + location.
+ * Jobs with the same key across providers are considered duplicates.
+ */
+function dedupKey(job: Job): string {
+  const title = normalizeText(job.title);
+  const company = normalizeText(job.company);
+  const location = normalizeText(job.location || '');
+  return `${title}|${company}|${location}`;
+}
+
+/**
+ * When two jobs are duplicates, pick the more complete record.
+ * Prefer: longer description, more skills, has a deadline, has a salary.
+ */
+function pickMoreComplete(a: Job, b: Job): Job {
+  let scoreA = 0;
+  let scoreB = 0;
+  if (a.description) scoreA += a.description.length;
+  if (b.description) scoreB += b.description.length;
+  if (a.skills.length) scoreA += a.skills.length * 50;
+  if (b.skills.length) scoreB += b.skills.length * 50;
+  if (a.application_deadline) scoreA += 100;
+  if (b.application_deadline) scoreB += 100;
+  if (a.salary_range) scoreA += 100;
+  if (b.salary_range) scoreB += 100;
+  return scoreA >= scoreB ? a : b;
+}
+
+interface ProviderResult {
+  result: JobSearchResult;
+  provider: JobProvider;
+}
+
+/**
+ * JobAggregator — calls all registered providers in parallel, merges results
+ * into a single deduplicated list, and handles pagination across providers.
+ *
+ * Pagination strategy: each provider is queried with the same page number.
+ * Results are merged and deduplicated. has_more is true if ANY provider has more.
+ * Total is the sum across providers (approximate for display purposes).
+ *
+ * If a provider fails, its results are simply excluded — other providers still
+ * return jobs. No provider errors are exposed to the user.
+ */
+export class JobAggregator implements JobProvider {
+  readonly name = 'CareerFlow';
+  private providers: JobProvider[];
+
+  constructor(providers: JobProvider[]) {
+    this.providers = providers;
+  }
+
+  get isConnected(): boolean {
+    return this.providers.some((p) => p.isConnected);
+  }
+
+  async search(filters: JobSearchFilters): Promise<JobSearchResult> {
+    const results = await Promise.all(
+      this.providers.map(async (provider) => {
+        try {
+          const result = await provider.search(filters);
+          return { result, provider } as ProviderResult;
+        } catch {
+          return {
+            result: { jobs: [], total: 0, has_more: false, source: provider.name },
+            provider,
+          } as ProviderResult;
+        }
+      })
+    );
+
+    // Filter out providers that returned configuration errors
+    const validResults = results.filter(
+      (r) => r.result.configured !== false && !r.result.error
+    );
+
+    // If all providers returned configuration errors, surface that
+    if (validResults.length === 0) {
+      const firstConfig = results.find((r) => r.result.configured === false);
+      if (firstConfig) {
+        return {
+          jobs: [],
+          total: 0,
+          has_more: false,
+          source: this.name,
+          configured: false,
+        };
+      }
+      const firstError = results.find((r) => r.result.error);
+      return {
+        jobs: [],
+        total: 0,
+        has_more: false,
+        source: this.name,
+        configured: true,
+        error: firstError?.result.error,
+      };
+    }
+
+    // Merge and deduplicate across all providers
+    const seen = new Map<string, Job>();
+
+    for (const { result } of validResults) {
+      for (const job of result.jobs) {
+        const key = dedupKey(job);
+        const existing = seen.get(key);
+        if (!existing) {
+          seen.set(key, job);
+        } else {
+          seen.set(key, pickMoreComplete(existing, job));
+        }
+      }
+    }
+
+    const mergedJobs = Array.from(seen.values());
+    const totalHasMore = validResults.some((r) => r.result.has_more);
+    const totalSum = validResults.reduce((sum, r) => sum + (r.result.total || 0), 0);
+
+    return {
+      jobs: mergedJobs,
+      total: totalSum,
+      has_more: totalHasMore,
+      source: this.name,
+      configured: true,
+    };
+  }
+}
+
+const providers: JobProvider[] = [new AdzunaJobProvider()];
+
+export const jobProvider: JobProvider = new JobAggregator(providers);
