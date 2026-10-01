@@ -12,6 +12,9 @@ interface SearchRequest {
   full_time?: boolean;
   permanent?: boolean;
   country?: string;
+  experience_level?: string;
+  work_arrangement?: string;
+  sort?: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -75,6 +78,15 @@ Deno.serve(async (req: Request) => {
     if (body.permanent === true) {
       params.set("permanent", "1");
     }
+    // Adzuna supports sort by date or relevance
+    if (body.sort === "latest") {
+      params.set("sort_by", "date");
+      params.set("sort_dir", "down");
+    } else if (body.sort === "deadline") {
+      // Adzuna does not natively sort by deadline; use date as closest proxy
+      params.set("sort_by", "date");
+      params.set("sort_dir", "up");
+    }
 
     const apiUrl = `${baseUrl}?${params.toString()}`;
 
@@ -122,7 +134,7 @@ Deno.serve(async (req: Request) => {
     });
 
     // Map Adzuna results to CareerFlow Job shape
-    const jobs = rawResults.map((r: Record<string, unknown>) => {
+    const allJobs = rawResults.map((r: Record<string, unknown>) => {
       const id = String(r.id || "");
       const title = String(r.title || "Untitled Position");
       const company = (r.company as Record<string, unknown>)?.display_name || String(r.company || "Unknown Company");
@@ -190,6 +202,16 @@ Deno.serve(async (req: Request) => {
         }
       }
 
+      // Extract application deadline from description if mentioned
+      let applicationDeadline: string | null = null;
+      const deadlineMatch = description.match(/(?:deadline|apply by|last date|closes? on)\s*[:\-]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}|\w+ \d{1,2},? \d{4})/i);
+      if (deadlineMatch) {
+        const parsed = new Date(deadlineMatch[1]);
+        if (!isNaN(parsed.getTime())) {
+          applicationDeadline = parsed.toISOString();
+        }
+      }
+
       return {
         id: `adzuna-${id}`,
         title,
@@ -198,10 +220,10 @@ Deno.serve(async (req: Request) => {
         employment_type: employmentType,
         work_arrangement: workArrangement,
         experience_level: experienceLevel,
-        description: description.substring(0, 500),
+        description: description,
         requirements: skills.map((s) => ({ skill: s, required: false })),
         skills,
-        application_deadline: null,
+        application_deadline: applicationDeadline,
         application_url: redirectUrl,
         job_source: "Adzuna",
         source_type: "job_aggregator",
@@ -212,9 +234,26 @@ Deno.serve(async (req: Request) => {
       };
     });
 
+    // Post-map filtering: experience_level and work_arrangement are derived
+    // from title/description heuristics, so we filter after mapping.
+    let filteredJobs = allJobs;
+    if (body.experience_level) {
+      filteredJobs = filteredJobs.filter((j) => j.experience_level === body.experience_level);
+    }
+    if (body.work_arrangement) {
+      filteredJobs = filteredJobs.filter((j) => j.work_arrangement === body.work_arrangement);
+    }
+
+    // Filter out expired jobs (deadline in the past)
+    const now = Date.now();
+    filteredJobs = filteredJobs.filter((j) => {
+      if (!j.application_deadline) return true;
+      return new Date(j.application_deadline).getTime() > now;
+    });
+
     const result = {
-      jobs,
-      total: data.count || jobs.length,
+      jobs: filteredJobs,
+      total: data.count || filteredJobs.length,
       has_more: (data.count || 0) > page * resultsPerPage,
       source: "Adzuna",
       configured: true,

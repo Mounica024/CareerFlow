@@ -240,9 +240,25 @@ export function FindJobsPage() {
     return map;
   }, [jobs, profile]);
 
+  // Client-side post-filter for experience_level and work_arrangement as a safety net
+  // (the edge function also filters, but the heuristic-derived values may differ)
+  const filteredJobs = useMemo(() => {
+    let result = jobs;
+    if (filters.experience_level) {
+      result = result.filter((j) => j.experience_level === filters.experience_level);
+    }
+    if (filters.work_arrangement) {
+      result = result.filter((j) => j.work_arrangement === filters.work_arrangement);
+    }
+    return result;
+  }, [jobs, filters.experience_level, filters.work_arrangement]);
+
   const sortedJobs = useMemo(() => {
-    if (activeQuickFilter === 'recommended' && profile) {
-      return [...jobs].sort((a, b) => {
+    const activeSort = activeQuickFilter === 'recommended' ? 'best_match' : filters.sort;
+    const arr = [...filteredJobs];
+
+    if (activeSort === 'best_match' && profile) {
+      return arr.sort((a, b) => {
         const ma = jobMatches.get(a.id);
         const mb = jobMatches.get(b.id);
         const pa = ma?.match_percentage ?? -1;
@@ -250,8 +266,22 @@ export function FindJobsPage() {
         return pb - pa;
       });
     }
-    return jobs;
-  }, [jobs, activeQuickFilter, profile, jobMatches]);
+    if (activeSort === 'latest') {
+      return arr.sort((a, b) => {
+        const da = a.posted_at ? new Date(a.posted_at).getTime() : 0;
+        const db = b.posted_at ? new Date(b.posted_at).getTime() : 0;
+        return db - da;
+      });
+    }
+    if (activeSort === 'deadline') {
+      return arr.sort((a, b) => {
+        const da = a.application_deadline ? new Date(a.application_deadline).getTime() : Infinity;
+        const db = b.application_deadline ? new Date(b.application_deadline).getTime() : Infinity;
+        return da - db;
+      });
+    }
+    return arr;
+  }, [filteredJobs, filters.sort, activeQuickFilter, profile, jobMatches]);
 
   const hasProfile = profile && (profile.skills.length > 0 || profile.programming_languages.length > 0);
   const hasStrongMatches = sortedJobs.some((j) => {
@@ -482,7 +512,7 @@ export function FindJobsPage() {
           {sortedJobs.length > 0 && (
             <p className="mb-4 text-sm text-slate-500">
               {total > 0 ? `${total.toLocaleString()} jobs found` : `${sortedJobs.length} jobs found`}
-              {activeQuickFilter === 'recommended' && ' — sorted by best match'}
+              {((activeQuickFilter === 'recommended') || filters.sort === 'best_match') && ' — sorted by best match'}
             </p>
           )}
           {sortedJobs.length > 0 ? (
@@ -533,7 +563,7 @@ export function FindJobsPage() {
           ) : null}
 
           {/* No strong matches state */}
-          {searched && sortedJobs.length > 0 && !hasStrongMatches && activeQuickFilter === 'recommended' && profile && (
+          {searched && sortedJobs.length > 0 && !hasStrongMatches && (activeQuickFilter === 'recommended' || filters.sort === 'best_match') && profile && (
             <div className="card mt-6 border-amber-200 bg-amber-50/50 p-5">
               <div className="flex items-start gap-3">
                 <FilterX className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />

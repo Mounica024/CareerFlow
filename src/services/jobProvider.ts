@@ -35,6 +35,9 @@ export class AdzunaJobProvider implements JobProvider {
       results_per_page: filters.results_per_page || 10,
       full_time: filters.employment_type === 'full_time',
       country: 'in',
+      experience_level: filters.experience_level || undefined,
+      work_arrangement: filters.work_arrangement || undefined,
+      sort: filters.sort || undefined,
     };
 
     let response: Response;
