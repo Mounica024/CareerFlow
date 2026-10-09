@@ -485,7 +485,6 @@ const providers: JobProvider[] = [
   new AdzunaJobProvider(),
   new LeverJobProvider(),
   new GreenhouseJobProvider(),
-  new SmartRecruitersJobProvider(),
   new AshbyJobProvider(),
 ];
 

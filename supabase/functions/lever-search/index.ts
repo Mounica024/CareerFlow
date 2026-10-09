@@ -57,21 +57,15 @@ Deno.serve(async (req: Request) => {
     const page = Math.max(1, body.page || 1);
     const resultsPerPage = Math.min(Math.max(1, body.results_per_page || 10), 50);
 
-    // A curated set of companies that use Lever as their ATS.
-    // These are public, unauthenticated endpoints — no API key needed.
-    // Each returns all active postings for that company.
-    // The handle maps to the company's Lever posting URL slug.
+    // Verified Lever board handles — these are public, per-company slugs.
+    // Only companies currently returning active postings are listed.
+    // The Lever Postings API is keyless and public.
+    // Source: https://developers.greenhouse.io/job-board.html
     const leverCompanies: { handle: string; name: string }[] = [
-      { handle: "lever", name: "Lever" },
-      { handle: "netlify", name: "Netlify" },
-      { handle: "figma", name: "Figma" },
-      { handle: "vercel", name: "Vercel" },
-      { handle: "linear", name: "Linear" },
-      { handle: "notion", name: "Notion" },
-      { handle: "loom", name: "Loom" },
-      { handle: "plaid", name: "Plaid" },
-      { handle: "segment", name: "Segment" },
-      { handle: "mixpanel", name: "Mixpanel" },
+      { handle: "unlimit", name: "Unlimit" },
+      { handle: "toptal", name: "Toptal" },
+      { handle: "netlight", name: "Netlight" },
+      { handle: "minted", name: "Minted" },
     ];
 
     // Fetch all postings from all companies in parallel

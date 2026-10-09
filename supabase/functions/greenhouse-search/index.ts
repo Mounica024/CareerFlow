@@ -42,19 +42,16 @@ Deno.serve(async (req: Request) => {
     // Verified Greenhouse board tokens — these are public, per-company slugs.
     // The Greenhouse Job Board API is keyless and public.
     // Source: https://developers.greenhouse.io/job-board.html
+    // Verified working board tokens — tested against the live Greenhouse API.
+    // Source: https://developers.greenhouse.io/job-board.html
     const greenhouseBoards: { token: string; name: string }[] = [
       { token: "anthropic", name: "Anthropic" },
       { token: "stripe", name: "Stripe" },
       { token: "airbnb", name: "Airbnb" },
-      { token: "doordash", name: "DoorDash" },
       { token: "coinbase", name: "Coinbase" },
-      { token: "ramp", name: "Ramp" },
       { token: "brex", name: "Brex" },
-      { token: "rippling", name: "Rippling" },
-      { token: "perplexity", name: "Perplexity AI" },
       { token: "monzo", name: "Monzo" },
       { token: "mercury", name: "Mercury" },
-      { token: "cruise", name: "Cruise" },
     ];
 
     // Fetch all jobs from all boards in parallel
@@ -101,13 +98,13 @@ Deno.serve(async (req: Request) => {
       const location = j.location?.name || undefined;
       const descriptionRaw = j.content || "";
       const description = descriptionRaw
-        .replace(/<[^>]*>/g, " ")
-        .replace(/&amp;/g, "&")
         .replace(/&lt;/g, "<")
         .replace(/&gt;/g, ">")
-        .replace(/&nbsp;/g, " ")
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/<[^>]*>/g, " ")
         .replace(/\r\n/g, "\n")
         .replace(/[ \t]+\n/g, "\n")
         .replace(/\n{3,}/g, "\n\n")

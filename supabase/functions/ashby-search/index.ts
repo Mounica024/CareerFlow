@@ -46,13 +46,11 @@ Deno.serve(async (req: Request) => {
     const page = Math.max(1, body.page || 1);
     const resultsPerPage = Math.min(Math.max(1, body.results_per_page || 10), 50);
 
-    // Verified Ashby organization slugs — these are public, per-company slugs.
+    // Verified Ashby organization slugs — only organizations returning active postings.
     // The Ashby Job Board endpoint is keyless and public.
     // Source: https://developers.ashbyhq.com
     const ashbyOrgs: { slug: string; name: string }[] = [
       { slug: "ashby", name: "Ashby" },
-      { slug: "polygon", name: "Polygon" },
-      { slug: "wbengineering", name: "Warner Bros Engineering" },
     ];
 
     // Fetch all postings from all orgs in parallel
