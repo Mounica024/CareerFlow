@@ -163,7 +163,7 @@ Deno.serve(async (req: Request) => {
       let employmentType: string = "full_time";
       if (contractTime === "part_time") employmentType = "part_time";
       else if (contractType === "contract") employmentType = "contract";
-      else if (title.toLowerCase().includes("intern") || description.toLowerCase().includes("internship")) employmentType = "internship";
+      else if (title.toLowerCase().includes("intern")) employmentType = "internship";
 
       // Determine work arrangement from description
       const descLower = description.toLowerCase();
@@ -254,7 +254,7 @@ Deno.serve(async (req: Request) => {
         application_url: redirectUrl,
         job_source: "Adzuna",
         source_type: "job_aggregator",
-        source_url: "https://www.adzuna.com",
+        source_url: redirectUrl,
         posted_at: created,
         salary_range: salaryRange,
         category,
@@ -298,7 +298,7 @@ Deno.serve(async (req: Request) => {
     const result = {
       jobs: filteredJobs,
       total: filteredJobs.length,
-      has_more: (data.count || 0) > page * resultsPerPage && filteredJobs.length > 0,
+      has_more: (data.results || []).length >= resultsPerPage && (data.count || 0) > page * resultsPerPage,
       source: "Adzuna",
       configured: true,
     };

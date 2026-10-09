@@ -126,7 +126,7 @@ Deno.serve(async (req: Request) => {
       const commitment = (p.commitment || p.categories?.commitment || "").toLowerCase();
       if (commitment.includes("part") || commitment.includes("contract")) {
         employmentType = commitment.includes("part") ? "part_time" : "contract";
-      } else if (titleLower.includes("intern") || descLower.includes("internship")) {
+      } else if (commitment.includes("intern") || titleLower.includes("intern")) {
         employmentType = "internship";
       }
 
@@ -208,7 +208,7 @@ Deno.serve(async (req: Request) => {
         requirements: skills.map((s) => ({ skill: s, required: false })),
         skills,
         application_deadline: null,
-        application_url: p.applyUrl || p.hostedUrl,
+        application_url: p.hostedUrl || p.applyUrl,
         job_source: "Lever",
         source_type: "company_careers",
         source_url: p.hostedUrl,
