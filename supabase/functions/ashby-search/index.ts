@@ -46,11 +46,18 @@ Deno.serve(async (req: Request) => {
     const page = Math.max(1, body.page || 1);
     const resultsPerPage = Math.min(Math.max(1, body.results_per_page || 10), 50);
 
-    // Verified Ashby organization slugs — only organizations returning active postings.
+    // Verified Ashby organization slugs — tested against the live Ashby API on 2026-10-09.
     // The Ashby Job Board endpoint is keyless and public.
     // Source: https://developers.ashbyhq.com
     const ashbyOrgs: { slug: string; name: string }[] = [
       { slug: "ashby", name: "Ashby" },
+      { slug: "ramp", name: "Ramp" },
+      { slug: "notion", name: "Notion" },
+      { slug: "linear", name: "Linear" },
+      { slug: "sentry", name: "Sentry" },
+      { slug: "merge", name: "Merge" },
+      { slug: "posthog", name: "PostHog" },
+      { slug: "sentient", name: "Sentient" },
     ];
 
     // Fetch all postings from all orgs in parallel
@@ -257,6 +264,27 @@ Deno.serve(async (req: Request) => {
       seenIds.add(j.id);
       return true;
     });
+
+    // Interleave by company so no single employer dominates a page
+    const byCompany = new Map<string, typeof resultJobs>();
+    for (const job of resultJobs) {
+      const key = job.company || "Unknown";
+      const arr = byCompany.get(key);
+      if (arr) arr.push(job);
+      else byCompany.set(key, [job]);
+    }
+    const companyQueues = Array.from(byCompany.values());
+    const interleaved: typeof resultJobs = [];
+    let remaining = resultJobs.length;
+    while (remaining > 0) {
+      for (const queue of companyQueues) {
+        if (queue.length > 0) {
+          interleaved.push(queue.shift()!);
+          remaining--;
+        }
+      }
+    }
+    resultJobs = interleaved;
 
     // Pagination
     const start = (page - 1) * resultsPerPage;

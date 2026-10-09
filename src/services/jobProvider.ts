@@ -467,12 +467,33 @@ export class JobAggregator implements JobProvider {
     }
 
     const mergedJobs = Array.from(seen.values());
+
+    // Interleave jobs across companies so no single employer dominates a page.
+    // Group by company, then round-robin: take one job from each company in turn.
+    const byCompany = new Map<string, Job[]>();
+    for (const job of mergedJobs) {
+      const key = normalizeText(job.company);
+      const arr = byCompany.get(key);
+      if (arr) arr.push(job);
+      else byCompany.set(key, [job]);
+    }
+    const companyQueues = Array.from(byCompany.values());
+    const interleaved: Job[] = [];
+    let remaining = mergedJobs.length;
+    while (remaining > 0) {
+      for (const queue of companyQueues) {
+        if (queue.length > 0) {
+          interleaved.push(queue.shift()!);
+          remaining--;
+        }
+      }
+    }
+
     const totalHasMore = validResults.some((r) => r.result.has_more);
-    // Total reflects only verified jobs that passed the quality gate
-    const totalSum = mergedJobs.length;
+    const totalSum = interleaved.length;
 
     return {
-      jobs: mergedJobs,
+      jobs: interleaved,
       total: totalSum,
       has_more: totalHasMore,
       source: this.name,

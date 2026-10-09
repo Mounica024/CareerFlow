@@ -57,15 +57,18 @@ Deno.serve(async (req: Request) => {
     const page = Math.max(1, body.page || 1);
     const resultsPerPage = Math.min(Math.max(1, body.results_per_page || 10), 50);
 
-    // Verified Lever board handles — these are public, per-company slugs.
+    // Verified Lever board handles — tested against the live Lever API on 2026-10-09.
     // Only companies currently returning active postings are listed.
     // The Lever Postings API is keyless and public.
-    // Source: https://developers.greenhouse.io/job-board.html
+    // Source: https://developers.lever.co/docs
     const leverCompanies: { handle: string; name: string }[] = [
       { handle: "unlimit", name: "Unlimit" },
       { handle: "toptal", name: "Toptal" },
       { handle: "netlight", name: "Netlight" },
       { handle: "minted", name: "Minted" },
+      { handle: "ion", name: "ION Group" },
+      { handle: "paytm", name: "Paytm" },
+      { handle: "cred", name: "Cred" },
     ];
 
     // Fetch all postings from all companies in parallel
@@ -278,6 +281,27 @@ Deno.serve(async (req: Request) => {
       seenIds.add(j.id);
       return true;
     });
+
+    // Interleave by company so no single employer dominates a page
+    const byCompany = new Map<string, typeof resultJobs>();
+    for (const job of resultJobs) {
+      const key = job.company || "Unknown";
+      const arr = byCompany.get(key);
+      if (arr) arr.push(job);
+      else byCompany.set(key, [job]);
+    }
+    const companyQueues = Array.from(byCompany.values());
+    const interleaved: typeof resultJobs = [];
+    let remaining = resultJobs.length;
+    while (remaining > 0) {
+      for (const queue of companyQueues) {
+        if (queue.length > 0) {
+          interleaved.push(queue.shift()!);
+          remaining--;
+        }
+      }
+    }
+    resultJobs = interleaved;
 
     // Pagination
     const start = (page - 1) * resultsPerPage;
