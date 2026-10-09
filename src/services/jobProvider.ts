@@ -1,4 +1,5 @@
 import type { Job, JobSearchFilters, JobSearchResult } from '@/types';
+import { validateJob } from '@/lib/jobUtils';
 
 /**
  * JobProvider interface — pluggable job source.
@@ -200,9 +201,16 @@ function dedupKey(job: Job): string {
 
 /**
  * When two jobs are duplicates, pick the more complete record.
- * Prefer: longer description, more skills, has a deadline, has a salary.
+ * Prefer: direct employer/ATS sources over aggregators, then longer description,
+ * more skills, has a deadline, has a salary.
  */
 function pickMoreComplete(a: Job, b: Job): Job {
+  // Prefer direct employer/ATS sources (company_careers, government) over aggregators
+  const aDirect = a.source_type === 'company_careers' || a.source_type === 'government';
+  const bDirect = b.source_type === 'company_careers' || b.source_type === 'government';
+  if (aDirect && !bDirect) return a;
+  if (!aDirect && bDirect) return b;
+
   let scoreA = 0;
   let scoreB = 0;
   if (a.description) scoreA += a.description.length;
@@ -292,19 +300,24 @@ export class JobAggregator implements JobProvider {
 
     for (const { result } of validResults) {
       for (const job of result.jobs) {
-        const key = dedupKey(job);
+        // Client-side quality gate safety net: reject invalid jobs
+        const validated = validateJob(job);
+        if (!validated) continue;
+
+        const key = dedupKey(validated);
         const existing = seen.get(key);
         if (!existing) {
-          seen.set(key, job);
+          seen.set(key, validated);
         } else {
-          seen.set(key, pickMoreComplete(existing, job));
+          seen.set(key, pickMoreComplete(existing, validated));
         }
       }
     }
 
     const mergedJobs = Array.from(seen.values());
     const totalHasMore = validResults.some((r) => r.result.has_more);
-    const totalSum = validResults.reduce((sum, r) => sum + (r.result.total || 0), 0);
+    // Total reflects only verified jobs that passed the quality gate
+    const totalSum = mergedJobs.length;
 
     return {
       jobs: mergedJobs,

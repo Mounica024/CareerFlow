@@ -1,7 +1,7 @@
 import { Bookmark, BookmarkCheck, ExternalLink, MapPin, Building2, Clock, CheckCircle2, XCircle, DollarSign, Calendar, ClipboardCheck, Loader2, ShieldCheck, ShieldQuestion, Globe } from 'lucide-react';
 import type { Job, JobMatchResult, SourceType } from '@/types';
 import { MatchBadge, EmploymentTypeBadge, WorkArrangementBadge, ExperienceLevelBadge } from '@/components/Badges';
-import { normalizeCompany, formatJobDate, cleanDescription } from '@/lib/jobUtils';
+import { normalizeCompany, formatJobDate, cleanDescription, formatRelativeDate } from '@/lib/jobUtils';
 
 const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
   government: 'Government / Public',
@@ -105,9 +105,9 @@ export function JobCard({
             <DollarSign className="h-3 w-3" /> {job.salary_range}
           </span>
         )}
-        {formatJobDate(job.posted_at) && (
+        {formatRelativeDate(job.posted_at) && (
           <span className="badge bg-slate-50 text-slate-500">
-            <Calendar className="h-3 w-3" /> {formatJobDate(job.posted_at)}
+            <Calendar className="h-3 w-3" /> {formatRelativeDate(job.posted_at)}
           </span>
         )}
       </div>

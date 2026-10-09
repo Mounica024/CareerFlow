@@ -511,7 +511,7 @@ export function FindJobsPage() {
         <>
           {sortedJobs.length > 0 && (
             <p className="mb-4 text-sm text-slate-500">
-              {total > 0 ? `${total.toLocaleString()} jobs found` : `${sortedJobs.length} jobs found`}
+              {sortedJobs.length} verified {sortedJobs.length === 1 ? 'job' : 'jobs'} found
               {((activeQuickFilter === 'recommended') || filters.sort === 'best_match') && ' — sorted by best match'}
             </p>
           )}
@@ -555,10 +555,10 @@ export function FindJobsPage() {
           ) : !error && !notConfigured ? (
             <EmptyState
               icon={<Search className="h-6 w-6" />}
-              title="No matching jobs found"
+              title="No verified jobs found"
               description={company.trim()
-                ? `No matching jobs found for this company. Try a different company name or keyword.`
-                : "Try adjusting your search terms, location, or filters."}
+                ? `No verified jobs found for this company. Try a different company name or keyword.`
+                : "No verified jobs matched your search. Try adjusting your search terms, location, or filters."}
             />
           ) : null}
 

@@ -192,7 +192,7 @@ Deno.serve(async (req: Request) => {
       } else if (descLowerForLevel.match(/(1\+|2\+)\s*years?/)) {
         experienceLevel = "junior";
       } else {
-        experienceLevel = "entry_level";
+        experienceLevel = "not_specified";
       }
 
       // Build salary range string
@@ -278,10 +278,27 @@ Deno.serve(async (req: Request) => {
       return new Date(j.application_deadline).getTime() > now;
     });
 
+    // Quality gate: reject jobs with missing title, company, valid application URL,
+    // or malformed data. Adzuna is an aggregator — only show records that have
+    // a genuine redirect URL to the original posting.
+    filteredJobs = filteredJobs.filter((j) => {
+      if (!j.title || !j.title.trim() || j.title === "Untitled Position") return false;
+      if (!j.company || j.company === "Unknown Company" || j.company.includes("[object Object]")) return false;
+      if (!j.application_url || typeof j.application_url !== "string") return false;
+      try {
+        const u = new URL(j.application_url);
+        if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+      } catch {
+        return false;
+      }
+      if (j.description && j.description.includes("[object Object]")) return false;
+      return true;
+    });
+
     const result = {
       jobs: filteredJobs,
-      total: data.count || filteredJobs.length,
-      has_more: (data.count || 0) > page * resultsPerPage,
+      total: filteredJobs.length,
+      has_more: (data.count || 0) > page * resultsPerPage && filteredJobs.length > 0,
       source: "Adzuna",
       configured: true,
     };

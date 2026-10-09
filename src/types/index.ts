@@ -2,7 +2,7 @@
 
 export type EmploymentType = 'full_time' | 'part_time' | 'internship' | 'contract';
 export type WorkArrangement = 'remote' | 'on_site' | 'hybrid';
-export type ExperienceLevel = 'entry_level' | 'junior' | 'mid' | 'senior' | 'lead';
+export type ExperienceLevel = 'entry_level' | 'junior' | 'mid' | 'senior' | 'lead' | 'not_specified';
 
 export type ApplicationStatus =
   | 'saved'

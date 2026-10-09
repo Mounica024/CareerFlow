@@ -32,6 +32,7 @@ interface LeverPosting {
   location?: string;
   team?: string;
   commitment?: string;
+  _companyName?: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -59,28 +60,30 @@ Deno.serve(async (req: Request) => {
     // A curated set of companies that use Lever as their ATS.
     // These are public, unauthenticated endpoints — no API key needed.
     // Each returns all active postings for that company.
-    const leverCompanies = [
-      "lever",
-      "netlify",
-      "figma",
-      "vercel",
-      "linear",
-      "notion",
-      "loom",
-      "plaid",
-      "segment",
-      "mixpanel",
+    // The handle maps to the company's Lever posting URL slug.
+    const leverCompanies: { handle: string; name: string }[] = [
+      { handle: "lever", name: "Lever" },
+      { handle: "netlify", name: "Netlify" },
+      { handle: "figma", name: "Figma" },
+      { handle: "vercel", name: "Vercel" },
+      { handle: "linear", name: "Linear" },
+      { handle: "notion", name: "Notion" },
+      { handle: "loom", name: "Loom" },
+      { handle: "plaid", name: "Plaid" },
+      { handle: "segment", name: "Segment" },
+      { handle: "mixpanel", name: "Mixpanel" },
     ];
 
     // Fetch all postings from all companies in parallel
-    const fetches = leverCompanies.map(async (handle) => {
+    const fetches = leverCompanies.map(async ({ handle, name }) => {
       const apiUrl = `https://api.lever.co/v0/postings/${handle}?mode=json`;
       try {
         const resp = await fetch(apiUrl, { headers: { Accept: "application/json" } });
         if (!resp.ok) return [];
         const data = await resp.json();
         if (!Array.isArray(data)) return [];
-        return data as LeverPosting[];
+        // Tag each posting with the real company name
+        return (data as LeverPosting[]).map((p) => ({ ...p, _companyName: name }));
       } catch {
         return [];
       }
@@ -112,10 +115,9 @@ Deno.serve(async (req: Request) => {
 
     // Map to CareerFlow Job shape
     const mappedJobs = filtered.map((p) => {
-      // Extract the actual company name. Lever postings don't include the
-      // employer name directly, so we use the handle from the posting's hostedUrl
-      // as a fallback. The categories.team field is a department, not a company.
-      const company = p.categories?.company || "Lever Employer";
+      // The real company name is injected from our curated handle-to-name mapping.
+      // Lever's public API does not include the employer name in the posting itself.
+      const company = p._companyName || "Unknown Company";
       const location = [p.location, p.city, p.region, p.country].filter(Boolean).join(", ") || undefined;
       const description = (p.descriptionPlain || p.description || "").replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
       const title = p.text || "Untitled Position";
@@ -159,7 +161,7 @@ Deno.serve(async (req: Request) => {
       } else if (descLower.match(/(1\+|2\+)\s*years?/)) {
         experienceLevel = "junior";
       } else {
-        experienceLevel = "entry_level";
+        experienceLevel = "not_specified";
       }
 
       // Extract skills from description
@@ -235,6 +237,29 @@ Deno.serve(async (req: Request) => {
     resultJobs = resultJobs.filter((j) => {
       if (!j.application_deadline) return true;
       return new Date(j.application_deadline).getTime() > now;
+    });
+
+    // Quality gate: reject jobs with missing title, company, valid URLs,
+    // or malformed data. Only genuine, verifiable postings are shown.
+    resultJobs = resultJobs.filter((j) => {
+      if (!j.title || !j.title.trim() || j.title === "Untitled Position") return false;
+      if (!j.company || j.company === "Unknown Company" || j.company.includes("[object Object]")) return false;
+      if (!j.application_url || typeof j.application_url !== "string") return false;
+      try {
+        const u = new URL(j.application_url);
+        if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+      } catch {
+        return false;
+      }
+      if (!j.source_url || typeof j.source_url !== "string") return false;
+      try {
+        const u = new URL(j.source_url);
+        if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+      } catch {
+        return false;
+      }
+      if (j.description && j.description.includes("[object Object]")) return false;
+      return true;
     });
 
     // Sort

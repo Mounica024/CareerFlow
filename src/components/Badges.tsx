@@ -38,12 +38,14 @@ export function WorkArrangementBadge({ arrangement }: { arrangement: WorkArrange
 }
 
 export function ExperienceLevelBadge({ level }: { level: ExperienceLevel }) {
+  if (level === 'not_specified') return null;
   const labels: Record<ExperienceLevel, string> = {
     entry_level: 'Entry Level',
     junior: 'Junior',
     mid: 'Mid-level',
     senior: 'Senior',
     lead: 'Lead',
+    not_specified: '',
   };
   return <span className="badge bg-violet-50 text-violet-700">{labels[level]}</span>;
 }

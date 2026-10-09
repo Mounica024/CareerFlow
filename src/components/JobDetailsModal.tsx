@@ -1,17 +1,17 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   MapPin, Building2, Clock, DollarSign, Calendar, ExternalLink,
   Bookmark, BookmarkCheck, ClipboardCheck, GraduationCap, Loader2,
   CheckCircle2, XCircle, AlertCircle, ShieldCheck, ShieldQuestion, Globe,
-  ArrowRight, AlertTriangle,
+  AlertTriangle, Link2,
 } from 'lucide-react';
 import type { Job, JobMatchResult, SourceType } from '@/types';
 import { Modal } from '@/components/Modal';
 import {
   MatchBadge, EmploymentTypeBadge, WorkArrangementBadge, ExperienceLevelBadge,
 } from '@/components/Badges';
-import { normalizeCompany, formatJobDate, cleanDescription } from '@/lib/jobUtils';
+import { normalizeCompany, formatJobDate, cleanDescription, formatRelativeDate, extractDescriptionSections, isValidUrl } from '@/lib/jobUtils';
 
 const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
   government: 'Government / Public',
@@ -56,12 +56,19 @@ export function JobDetailsModal({
   const [showApplyConfirm, setShowApplyConfirm] = useState(false);
   const navigate = useNavigate();
 
+  const sections = useMemo(() => extractDescriptionSections(job?.description), [job?.description]);
+
   if (!job) return null;
 
   const sourceType: SourceType = job.source_type || 'unverified';
   const SourceIcon = SOURCE_TYPE_ICONS[sourceType];
   const sourceLabel = SOURCE_TYPE_LABELS[sourceType];
   const sourceStyle = SOURCE_TYPE_STYLES[sourceType];
+  const company = normalizeCompany(job.company);
+  const postedRelative = formatRelativeDate(job.posted_at);
+  const postedDate = formatJobDate(job.posted_at);
+  const deadlineDate = formatJobDate(job.application_deadline);
+  const hasValidSourceUrl = isValidUrl(job.source_url);
 
   const handleApply = () => {
     if (job.application_url) {
@@ -74,6 +81,10 @@ export function JobDetailsModal({
     navigate('/app/preparation');
   };
 
+  const applyLabel = sourceType === 'company_careers' ? 'Company Website'
+    : sourceType === 'government' ? 'Government Portal'
+    : 'Source Website';
+
   return (
     <Modal open={!!job} onClose={onClose} title="Job Details" maxWidth="max-w-2xl">
       <div className="space-y-5">
@@ -81,14 +92,14 @@ export function JobDetailsModal({
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 border border-slate-200">
             {job.company_logo ? (
-              <img src={job.company_logo} alt={job.company} className="h-full w-full rounded-lg object-cover" />
+              <img src={job.company_logo} alt={company} className="h-full w-full rounded-lg object-cover" />
             ) : (
               <Building2 className="h-6 w-6" />
             )}
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-lg font-bold text-slate-900">{job.title}</h3>
-            <p className="text-sm text-slate-500">{normalizeCompany(job.company)}</p>
+            <p className="text-sm text-slate-500">{company}</p>
           </div>
           {isSaved ? (
             <button onClick={onRemove} className="rounded-lg p-2 text-brand-600 hover:bg-brand-50 transition-colors" title="Remove from saved">
@@ -118,39 +129,80 @@ export function JobDetailsModal({
               <DollarSign className="h-3 w-3" /> {job.salary_range}
             </span>
           )}
-          {formatJobDate(job.posted_at) && (
+          {postedRelative && (
             <span className="badge bg-slate-50 text-slate-500">
-              <Calendar className="h-3 w-3" /> Posted {formatJobDate(job.posted_at)}
+              <Calendar className="h-3 w-3" /> Posted {postedRelative}
             </span>
           )}
-          {formatJobDate(job.application_deadline) && (
+          {deadlineDate && (
             <span className="badge bg-rose-50 text-rose-700">
-              <Clock className="h-3 w-3" /> Deadline {formatJobDate(job.application_deadline)}
+              <Clock className="h-3 w-3" /> Deadline {deadlineDate}
             </span>
           )}
         </div>
 
         {/* Source info */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium ${sourceStyle}`}>
             <SourceIcon className="h-3 w-3" />
             {sourceLabel}
           </span>
           <span className="text-xs text-slate-500">via {job.job_source}</span>
+          {hasValidSourceUrl && (
+            <a
+              href={job.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 transition-colors"
+            >
+              <Link2 className="h-3 w-3" />
+              View original posting
+            </a>
+          )}
         </div>
 
-        {/* Description */}
-        {cleanDescription(job.description) && (
+        {/* About the Role / Job Description */}
+        {sections.description && (
           <div>
-            <h4 className="text-sm font-semibold text-slate-900 mb-1">Job Description</h4>
-            <p className="text-sm text-slate-600 whitespace-pre-line">{cleanDescription(job.description)}</p>
+            <h4 className="text-sm font-semibold text-slate-900 mb-1">About the Role</h4>
+            <p className="text-sm text-slate-600 whitespace-pre-line">{sections.description}</p>
+          </div>
+        )}
+
+        {/* Responsibilities */}
+        {sections.responsibilities.length > 0 && (
+          <div>
+            <h4 className="text-sm font-semibold text-slate-900 mb-2">Responsibilities</h4>
+            <ul className="space-y-1.5">
+              {sections.responsibilities.map((item, i) => (
+                <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                  <span className="text-slate-400 mt-0.5">•</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Requirements */}
+        {sections.requirements.length > 0 && (
+          <div>
+            <h4 className="text-sm font-semibold text-slate-900 mb-2">Requirements</h4>
+            <ul className="space-y-1.5">
+              {sections.requirements.map((item, i) => (
+                <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                  <span className="text-slate-400 mt-0.5">•</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
         {/* Skills */}
         {job.skills.length > 0 && (
           <div>
-            <h4 className="text-sm font-semibold text-slate-900 mb-2">Skills & Requirements</h4>
+            <h4 className="text-sm font-semibold text-slate-900 mb-2">Skills</h4>
             <div className="flex flex-wrap gap-1.5">
               {job.skills.map((skill) => (
                 <span key={skill} className="rounded-md bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600 border border-slate-200">
@@ -158,6 +210,21 @@ export function JobDetailsModal({
                 </span>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Benefits */}
+        {sections.benefits.length > 0 && (
+          <div>
+            <h4 className="text-sm font-semibold text-slate-900 mb-2">Benefits</h4>
+            <ul className="space-y-1.5">
+              {sections.benefits.map((item, i) => (
+                <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -299,7 +366,7 @@ export function JobDetailsModal({
               onClick={() => setShowApplyConfirm(true)}
               className="btn-primary text-sm ml-auto"
             >
-              Apply on {sourceType === 'company_careers' ? 'Company Website' : 'Source Website'}
+              Apply on {applyLabel}
               <ExternalLink className="h-4 w-4" />
             </button>
           )}
