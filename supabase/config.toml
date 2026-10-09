@@ -3,3 +3,12 @@ verify_jwt = true
 
 [functions.lever-search]
 verify_jwt = true
+
+[functions.greenhouse-search]
+verify_jwt = true
+
+[functions.smartrecruiters-search]
+verify_jwt = true
+
+[functions.ashby-search]
+verify_jwt = true
