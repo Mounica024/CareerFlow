@@ -174,7 +174,7 @@ Deno.serve(async (req: Request) => {
       // Determine experience level from title and description
       const titleLower = title.toLowerCase();
       const descLowerForLevel = description.toLowerCase();
-      let experienceLevel: string = "entry_level";
+      let experienceLevel: string = "not_specified";
       if (titleLower.includes("senior") || titleLower.includes("sr.") || titleLower.includes("lead")) {
         experienceLevel = "senior";
       } else if (titleLower.includes("principal") || titleLower.includes("staff") || titleLower.includes("director")) {

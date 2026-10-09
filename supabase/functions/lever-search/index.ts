@@ -140,7 +140,7 @@ Deno.serve(async (req: Request) => {
       }
 
       // Determine experience level from title and description
-      let experienceLevel = "entry_level";
+      let experienceLevel = "not_specified";
       if (titleLower.includes("senior") || titleLower.includes("sr.") || titleLower.includes("lead")) {
         experienceLevel = "senior";
       } else if (titleLower.includes("principal") || titleLower.includes("staff") || titleLower.includes("director")) {

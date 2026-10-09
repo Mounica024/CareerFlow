@@ -19,6 +19,7 @@ interface AshbyPosting {
   title: string;
   descriptionHtml?: string;
   description?: string;
+  descriptionPlain?: string;
   locationName?: string;
   location?: { city?: string; region?: string; country?: string };
   department?: string;
@@ -83,7 +84,7 @@ Deno.serve(async (req: Request) => {
       const q = body.query.trim().toLowerCase();
       filtered = filtered.filter((p) => {
         const title = (p.title || "").toLowerCase();
-        const desc = (p.description || p.descriptionHtml || "").toLowerCase();
+        const desc = (p.descriptionPlain || p.description || p.descriptionHtml || "").toLowerCase();
         const dept = (p.department || "").toLowerCase();
         return title.includes(q) || desc.includes(q) || dept.includes(q);
       });
@@ -104,7 +105,7 @@ Deno.serve(async (req: Request) => {
       const location = [p.locationName, p.location?.city, p.location?.region, p.location?.country].filter(Boolean).join(", ") || undefined;
 
       // Clean description — strip HTML tags
-      const rawDesc = p.description || p.descriptionHtml || "";
+      const rawDesc = p.descriptionPlain || p.description || p.descriptionHtml || "";
       const description = rawDesc
         .replace(/<[^>]*>/g, " ")
         .replace(/&amp;/g, "&")
@@ -130,7 +131,7 @@ Deno.serve(async (req: Request) => {
         employmentType = "part_time";
       } else if (empType.includes("contract") || titleLower.includes("contract")) {
         employmentType = "contract";
-      } else if (titleLower.includes("intern") || descLower.includes("internship")) {
+      } else if (empType.includes("intern") || titleLower.includes("intern")) {
         employmentType = "internship";
       }
 
@@ -196,7 +197,7 @@ Deno.serve(async (req: Request) => {
       }
 
       // Posted date
-      const postedAt = p.publishedDate || p.publishedAt || undefined;
+      const postedAt = p.publishedAt || p.publishedDate || undefined;
 
       // Application URL
       const applyUrl = p.applyUrl || p.externalUrl || undefined;

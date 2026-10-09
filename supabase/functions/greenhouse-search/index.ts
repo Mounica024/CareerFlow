@@ -322,7 +322,7 @@ Deno.serve(async (req: Request) => {
       // Refine employment type with description
       let employmentType = job.employment_type;
       if (employmentType === "full_time") {
-        if (descLower.includes("internship")) employmentType = "internship";
+        if (titleLower.includes("intern")) employmentType = "internship";
         else if (descLower.includes("contract position")) employmentType = "contract";
         else if (descLower.includes("part time")) employmentType = "part_time";
       }
